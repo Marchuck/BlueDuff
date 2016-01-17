@@ -21,7 +21,7 @@ Note: Library has rxandroid and support annotations library inside
 
 #Usage
 
-see wiki
+[Wiki](https://github.com/Marchuck/BlueDuff/wiki)
 
 
 #License
