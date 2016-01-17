@@ -20,3 +20,6 @@ Note: Library has rxandroid and support annotations library inside
 
 see wiki
 
+
+#License
+//todo:
