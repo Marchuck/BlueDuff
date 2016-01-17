@@ -1,8 +1,6 @@
 [![Release](https://jitpack.io/v/Marchuck/BlueDuff.svg)](https://jitpack.io/#Marchuck/BlueDuff)
 # BlueDuff
 
-!(Marchuck.github.com/MagicStories/app/src/main/res/drawable/blueduff.png)
-
 Easy to use Android Reacive Bluetooth library for communicating with microcontrollers. Tiny and simple.
 
 #Download
