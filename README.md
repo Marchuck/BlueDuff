@@ -1,5 +1,5 @@
 # BlueDuff
-Easy to use Android Reacive Bluetooth library.
+Easy to use Android Reacive Bluetooth library for communicating with microcontrollers. Tiny and simple.
 
 #Download
         //project 
@@ -17,5 +17,6 @@ Easy to use Android Reacive Bluetooth library.
 Note: Library has rxandroid and support annotations library inside
 
 #Usage
-//todo:
+
+see wiki
 
