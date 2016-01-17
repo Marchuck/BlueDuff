@@ -2,17 +2,19 @@
 Easy to use Android Reacive Bluetooth library.
 
 #Download
-allprojects {
-        ...
-        maven { url "https://jitpack.io" }
-    }
-}
+        //project 
+        allprojects {
+                ...
+                maven { url "https://jitpack.io" }
+        }
+        //module
+        dependencies {
+                ...  
+                compile 'com.github.Marchuck:blueduff:v1.0.3'
+        }
 
-dependencies {
-    ...  
-    compile 'com.github.Marchuck:blueduff:v1.0.3'
-}
-Note: Library has rxandroid and support annotations inside
+
+Note: Library has rxandroid and support annotations library inside
 
 #Usage
 //todo:
