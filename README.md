@@ -1,7 +1,9 @@
 [![Release](https://jitpack.io/v/Marchuck/BlueDuff.svg)](https://jitpack.io/#Marchuck/BlueDuff)
+
+[![Android Arsenal](https://img.shields.io/badge/Android%20Arsenal-BlueDuff-green.svg?style=true)](https://android-arsenal.com/details/1/3042)
 # BlueDuff
 ![alt tag](https://github.com/Marchuck/MagicStories/blob/master/app/src/main/res/drawable/blueduff.png)
-[![Android Arsenal](https://img.shields.io/badge/Android%20Arsenal-BlueDuff-green.svg?style=true)](https://android-arsenal.com/details/1/3042)
+
 Easy to use Android Reacive Bluetooth library for communicating with microcontrollers. Tiny and simple.
 
 #Download
