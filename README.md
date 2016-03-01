@@ -16,7 +16,7 @@ Easy to use Android Reacive Bluetooth library for communicating with microcontro
         //module
         dependencies {
                 ...  
-                compile 'com.github.Marchuck:blueduff:v1.0.3'
+                compile 'com.github.Marchuck:blueduff:v1.0.4'
         }
 ```
 
