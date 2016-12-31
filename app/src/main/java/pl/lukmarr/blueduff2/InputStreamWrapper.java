@@ -2,7 +2,6 @@ package pl.lukmarr.blueduff2;
 
 
 import android.bluetooth.BluetoothSocket;
-import android.util.Log;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -25,26 +24,22 @@ import io.reactivex.subjects.Subject;
 
 public class InputStreamWrapper implements Closeable {
 
+    boolean receivedData = false;
+    byte[] buffer = new byte[]{};
+    byte[] currentBuffer = new byte[]{};
+
+    InputStream is;
+    ConnectionCallbacks connectionCallbacks;
+    final BluetoothBundle bluetoothBundle;
     Subject<String> readStream = BehaviorSubject.create();
 
-    byte[] buffer = new byte[]{}, currentBuffer = new byte[]{};
-    boolean receivedData = false;
-    long bluetoothSleep;
-    String charsetString;
-    ConnectionCallbacks connectionCallbacks;
-    InputStream is;
-
-    public InputStreamWrapper(BluetoothSocket bluetoothSocket, String charsetString,
-                              int bufferCapacity,
-                              long bluetoothSleep,
+    public InputStreamWrapper(BluetoothSocket bluetoothSocket, BluetoothBundle bluetoothBundle,
                               ConnectionCallbacks connectionCallbacks) {
-        this.buffer = new byte[bufferCapacity];
-        this.bluetoothSleep = bluetoothSleep;
-        this.charsetString = charsetString;
+        this.buffer = new byte[bluetoothBundle.bufferCapacity];
+        this.bluetoothBundle = bluetoothBundle;
         this.connectionCallbacks = connectionCallbacks;
 
         openInputStream(bluetoothSocket);
-
     }
 
     Observable<InputStream> getInputStream(final BluetoothSocket socket) {
@@ -85,7 +80,7 @@ public class InputStreamWrapper implements Closeable {
         int bytesReceived;
         while (true) {
             try {
-                Thread.sleep(bluetoothSleep);
+                Thread.sleep(bluetoothBundle.bluetoothSleep);
                 bytesReceived = is.available();
                 manageNextPacket(bytesReceived);
             } catch (Exception x) {
@@ -97,33 +92,50 @@ public class InputStreamWrapper implements Closeable {
     private void manageNextPacket(int bytesReceived) throws IOException {
 
         if (bytesReceived > 0) {
-
-            bytesReceived = is.read(buffer);
-            byte[] newBuffer = new byte[bytesReceived];
-            System.arraycopy(buffer, 0, newBuffer, 0, bytesReceived);
-
-            if (receivedData) {
-                int aLen = currentBuffer.length;
-                int bLen = newBuffer.length;
-                byte[] c = new byte[aLen + bLen];
-                System.arraycopy(currentBuffer, 0, c, 0, aLen);
-                System.arraycopy(newBuffer, 0, c, aLen, bLen);
-                currentBuffer = c;
-            } else {
-                currentBuffer = newBuffer;
-            }
-            receivedData = true;
+            onBytesReceived();
         } else {
-            if (receivedData) {
-                readStream.onNext(byteToString(currentBuffer));
-            }
-            receivedData = false;
+            onBytesRead();
         }
     }
 
-      String byteToString(byte[] currentBuffer) {
+    private void onBytesRead() {
+
+        if (receivedData) {
+            readStream.onNext(byteToString(currentBuffer));
+        }
+
+        receivedData = false;
+    }
+
+    private void onBytesReceived() throws IOException {
+        int bytesReceived = is.read(buffer);
+        byte[] newBuffer = new byte[bytesReceived];
+        System.arraycopy(buffer, 0, newBuffer, 0, bytesReceived);
+
+        if (receivedData) {
+
+            onReceiveData(newBuffer);
+
+        } else {
+            currentBuffer = newBuffer;
+        }
+
+        receivedData = true;
+    }
+
+    private void onReceiveData(byte[] newBuffer) {
+        int aLen = currentBuffer.length;
+        int bLen = newBuffer.length;
+        byte[] c = new byte[aLen + bLen];
+        System.arraycopy(currentBuffer, 0, c, 0, aLen);
+        System.arraycopy(newBuffer, 0, c, aLen, bLen);
+        currentBuffer = c;
+    }
+
+
+    String byteToString(byte[] currentBuffer) {
         try {
-            return new String(currentBuffer, charsetString);
+            return new String(currentBuffer, bluetoothBundle.charset);
         } catch (UnsupportedEncodingException e) {
             return new String(currentBuffer);
         }

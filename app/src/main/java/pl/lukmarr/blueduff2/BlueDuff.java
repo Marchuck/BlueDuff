@@ -24,11 +24,10 @@ import io.reactivex.schedulers.Schedulers;
 
 public final class BlueDuff {
 
-    final int bufferCapacity;
-    final long bluetoothSleep;
-    final String charsetString;
     final boolean isSecure;
     final ConnectionCallbacks connectionCallbacks;
+
+    private final BluetoothBundle bluetoothBundle;
 
     BluetoothSocket bluetoothSocket;
     InputStreamWrapper inputStream;
@@ -66,15 +65,13 @@ public final class BlueDuff {
         }
 
         public BlueDuff build() {
-            return new BlueDuff(bufferCapacity, bluetoothSleep, charsetString, connectionCallbacks, isSecureCommunication);
+            return new BlueDuff(new BluetoothBundle(charsetString, bluetoothSleep, bufferCapacity), connectionCallbacks, isSecureCommunication);
         }
     }
 
-    private BlueDuff(int bufferCapacity, long bluetoothSleep, String charsetString,
+    private BlueDuff(BluetoothBundle bundle,
                      ConnectionCallbacks c, boolean isSecure) {
-        this.bufferCapacity = bufferCapacity;
-        this.bluetoothSleep = bluetoothSleep;
-        this.charsetString = charsetString;
+        this.bluetoothBundle = bundle;
         this.connectionCallbacks = c;
         this.isSecure = isSecure;
     }
@@ -94,6 +91,7 @@ public final class BlueDuff {
                     @Override
                     public Object apply(BluetoothSocket _bluetoothSocket) throws Exception {
                         bluetoothSocket = _bluetoothSocket;
+
                         createInputStream();
                         createOutputStream();
                         return new Object();
@@ -114,11 +112,11 @@ public final class BlueDuff {
     }
 
     void createInputStream() {
-        inputStream = new InputStreamWrapper(bluetoothSocket, charsetString, bufferCapacity, bluetoothSleep, connectionCallbacks);
+        inputStream = new InputStreamWrapper(bluetoothSocket, bluetoothBundle, connectionCallbacks);
     }
 
     void createOutputStream() {
-        outputStream = new OutputStreamWrapper(bluetoothSocket, charsetString, connectionCallbacks);
+        outputStream = new OutputStreamWrapper(bluetoothSocket, bluetoothBundle.charset, connectionCallbacks);
     }
 
     Observable<BluetoothSocket> connectToDevice(final BluetoothDevice device) {

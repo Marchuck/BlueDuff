@@ -26,7 +26,8 @@ public class OutputStreamWrapper implements Closeable {
 
     ConnectionCallbacks connectionCallbacks;
 
-    public OutputStreamWrapper(final BluetoothSocket bluetoothSocket, String charsetString, ConnectionCallbacks connectionCallbacks) {
+    public OutputStreamWrapper(final BluetoothSocket bluetoothSocket,
+                               String charsetString, ConnectionCallbacks connectionCallbacks) {
         this.charsetString = charsetString;
         this.connectionCallbacks = connectionCallbacks;
 
