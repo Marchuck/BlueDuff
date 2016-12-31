@@ -15,8 +15,6 @@ import io.reactivex.functions.Consumer;
 import io.reactivex.functions.Function;
 import io.reactivex.schedulers.Schedulers;
 
-import static android.Manifest.permission.BLUETOOTH;
-
 /**
  * Project "BlueDuff"
  * <p>
@@ -24,14 +22,13 @@ import static android.Manifest.permission.BLUETOOTH;
  * on 31.12.2016.
  */
 
-public final class BlueDuff2 {
+public final class BlueDuffie {
 
-    private final int bufferCapacity;
-    private final long bluetoothSleep;
-    private final String charsetString;
-    private final boolean isSecure;
-
-    private final ConnectionCallbacks connectionCallbacks;
+    final int bufferCapacity;
+    final long bluetoothSleep;
+    final String charsetString;
+    final boolean isSecure;
+    final ConnectionCallbacks connectionCallbacks;
 
     BluetoothSocket bluetoothSocket;
     InputStreamWrapper inputStream;
@@ -39,17 +36,17 @@ public final class BlueDuff2 {
 
     public static class Builder {
 
-        private int bufferCapacity;
-        private long bluetoothSleep;
-        private String charsetString;
-        private boolean isSecureCommunication;
-        private final ConnectionCallbacks connectionCallbacks;
+        int bufferCapacity;
+        long bluetoothSleep;
+        String charsetString;
+        boolean isSecureCommunication;
+        final ConnectionCallbacks connectionCallbacks;
 
         public void setSecureCommunication(boolean secureCommunication) {
             isSecureCommunication = secureCommunication;
         }
 
-        public Builder(  ConnectionCallbacks connectionCallbacks) {
+        public Builder(ConnectionCallbacks connectionCallbacks) {
             this.connectionCallbacks = connectionCallbacks;
         }
 
@@ -68,12 +65,12 @@ public final class BlueDuff2 {
             return this;
         }
 
-        public BlueDuff2 build() {
-            return new BlueDuff2(bufferCapacity, bluetoothSleep, charsetString, connectionCallbacks, isSecureCommunication);
+        public BlueDuffie build() {
+            return new BlueDuffie(bufferCapacity, bluetoothSleep, charsetString, connectionCallbacks, isSecureCommunication);
         }
     }
 
-    private BlueDuff2(int bufferCapacity, long bluetoothSleep, String charsetString,
+    private BlueDuffie(int bufferCapacity, long bluetoothSleep, String charsetString,
                        ConnectionCallbacks c, boolean isSecure) {
         this.bufferCapacity = bufferCapacity;
         this.bluetoothSleep = bluetoothSleep;
@@ -121,7 +118,7 @@ public final class BlueDuff2 {
     }
 
     void createOutputStream() {
-        outputStream =new  OutputStreamWrapper(bluetoothSocket, charsetString, connectionCallbacks);
+        outputStream = new OutputStreamWrapper(bluetoothSocket, charsetString, connectionCallbacks);
     }
 
     Observable<BluetoothSocket> connectToDevice(final BluetoothDevice device) {
@@ -148,7 +145,7 @@ public final class BlueDuff2 {
             if (outputStream != null) outputStream.close();
             if (bluetoothSocket != null) bluetoothSocket.close();
         } catch (IOException x) {
-
+            connectionCallbacks.onDisconnected();
         }
     }
 
