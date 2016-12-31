@@ -1,5 +1,5 @@
 [![Release](https://jitpack.io/v/Marchuck/BlueDuff.svg)](https://jitpack.io/#Marchuck/BlueDuff)
-
+[![codebeat badge](https://codebeat.co/badges/900e43e8-a6e9-4e22-908a-40dd91783962)](https://codebeat.co/projects/github-com-marchuck-blueduff)
 [![Android Arsenal](https://img.shields.io/badge/Android%20Arsenal-BlueDuff-green.svg?style=true)](https://android-arsenal.com/details/1/3042)
 # BlueDuff
 ![alt tag](https://github.com/Marchuck/MagicStories/blob/master/app/src/main/res/drawable/blueduff.png)
@@ -19,12 +19,13 @@ Easy to use Android Reacive Bluetooth library for communicating with microcontro
                 compile 'com.github.Marchuck:blueduff:v1.0.4'
         }
 ```
-**DEPRECATED: this lib dont have backpressure support, maybe will be implemented in the future.
+
+more fluent API **SOON** 
 
 
 #Usage
 
-[Wiki](https://github.com/Marchuck/BlueDuff/wiki)
+BlueDuffie.connect(BluetoothDevice)
 
 
 #License
