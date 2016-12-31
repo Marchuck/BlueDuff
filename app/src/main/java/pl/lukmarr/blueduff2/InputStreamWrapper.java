@@ -25,9 +25,7 @@ import io.reactivex.subjects.Subject;
 public class InputStreamWrapper implements Closeable {
 
     boolean receivedData = false;
-    byte[] buffer = new byte[]{};
     byte[] currentBuffer = new byte[]{};
-
     InputStream is;
     ConnectionCallbacks connectionCallbacks;
     final BluetoothBundle bluetoothBundle;
@@ -35,7 +33,6 @@ public class InputStreamWrapper implements Closeable {
 
     public InputStreamWrapper(BluetoothSocket bluetoothSocket, BluetoothBundle bluetoothBundle,
                               ConnectionCallbacks connectionCallbacks) {
-        this.buffer = new byte[bluetoothBundle.bufferCapacity];
         this.bluetoothBundle = bluetoothBundle;
         this.connectionCallbacks = connectionCallbacks;
 
@@ -68,8 +65,8 @@ public class InputStreamWrapper implements Closeable {
         }).subscribe(new Consumer<Boolean>() {
             @Override
             public void accept(Boolean success) throws Exception {
-                if (success) {
-
+                if (!success) {
+                    connectionCallbacks.onDisconnected();
                 }
             }
         });
@@ -78,43 +75,50 @@ public class InputStreamWrapper implements Closeable {
     void receiveMessages() {
 
         int bytesReceived;
+
+        byte[] buffer = new byte[bluetoothBundle.bufferCapacity];
+
         while (true) {
             try {
                 Thread.sleep(bluetoothBundle.bluetoothSleep);
+
                 bytesReceived = is.available();
-                manageNextPacket(bytesReceived);
+
+                manageNextPacket(bytesReceived, buffer);
+
             } catch (Exception x) {
                 connectionCallbacks.onError(x.getMessage());
             }
         }
     }
 
-    private void manageNextPacket(int bytesReceived) throws IOException {
+    private void manageNextPacket(int bytesReceived, byte[] buffer) throws IOException {
 
         if (bytesReceived > 0) {
-            onBytesReceived();
+            onBytesReceived(buffer);
         } else {
             onBytesRead();
         }
     }
 
-    private void onBytesRead() {
+    void onBytesRead() {
 
         if (receivedData) {
-            readStream.onNext(byteToString(currentBuffer));
+            readStream.onNext(bytesToString(currentBuffer));
         }
 
         receivedData = false;
     }
 
-    private void onBytesReceived() throws IOException {
+    void onBytesReceived(byte[] buffer) throws IOException {
+
         int bytesReceived = is.read(buffer);
         byte[] newBuffer = new byte[bytesReceived];
         System.arraycopy(buffer, 0, newBuffer, 0, bytesReceived);
 
         if (receivedData) {
 
-            onReceiveData(newBuffer);
+            currentBuffer = onReceiveData(currentBuffer, newBuffer);
 
         } else {
             currentBuffer = newBuffer;
@@ -123,17 +127,17 @@ public class InputStreamWrapper implements Closeable {
         receivedData = true;
     }
 
-    private void onReceiveData(byte[] newBuffer) {
+    byte[] onReceiveData(byte[] currentBuffer, byte[] newBuffer) {
         int aLen = currentBuffer.length;
         int bLen = newBuffer.length;
         byte[] c = new byte[aLen + bLen];
         System.arraycopy(currentBuffer, 0, c, 0, aLen);
         System.arraycopy(newBuffer, 0, c, aLen, bLen);
-        currentBuffer = c;
+        return c;
     }
 
 
-    String byteToString(byte[] currentBuffer) {
+    String bytesToString(byte[] currentBuffer) {
         try {
             return new String(currentBuffer, bluetoothBundle.charset);
         } catch (UnsupportedEncodingException e) {
