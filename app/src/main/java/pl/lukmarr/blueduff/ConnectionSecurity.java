@@ -11,7 +11,7 @@ import java.util.UUID;
  * or insecure:
  * {@link android.bluetooth.BluetoothDevice#createInsecureRfcommSocketToServiceRecord(UUID)}
  * <p/>
- * By default, connection is SECURE
+ * By default, connection inputStream SECURE
  *
  * @since 01.03.16
  */

@@ -7,6 +7,7 @@ import android.support.annotation.Nullable;
 import android.support.annotation.RequiresPermission;
 import android.util.Log;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -34,15 +35,16 @@ import static android.bluetooth.BluetoothAdapter.getDefaultAdapter;
  * RxAndroid supports error handling
  */
 public class BlueDuff {
-    public InputStream is;
-    public OutputStream os;
+    public InputStream inputStream;
+    public OutputStream outputStream;
     public static final String TAG = BlueDuff.class.getSimpleName();
     private final int BUFFER_CAPACITY;
-    private final long COLLECT_PACKET_DELAY;
+    private final long COLLECT_PAYLOAD_DELAY;
     private byte[] currentBuffer;
     public BluetoothSocket bluetoothSocket;
 
     private LogLevel logLevel = LogLevel.VERBOSE;
+    boolean receivedData = false;
 
     /**
      * @param logLevel VERBOSE, NONE or ERROR
@@ -53,13 +55,13 @@ public class BlueDuff {
 
     /**
      * note: if implemetation exists,
-     * this is not running in main thread,
+     * this inputStream not running in main thread,
      */
     @Nullable
-    private BlueInterfaces.OnConnectionError onConnectionErrorcallback;
+    private BlueInterfaces.OnConnectionError onConnectionErrorCallback;
 
-    public void setOnConnectionErrorcallback(@Nullable BlueInterfaces.OnConnectionError onConnectionErrorcallback) {
-        this.onConnectionErrorcallback = onConnectionErrorcallback;
+    public void setOnConnectionErrorCallback(@Nullable BlueInterfaces.OnConnectionError onConnectionErrorCallback) {
+        this.onConnectionErrorCallback = onConnectionErrorCallback;
     }
 
     public BlueDuff() {
@@ -68,11 +70,20 @@ public class BlueDuff {
 
     public BlueDuff(int bufferCapacity, int collectPacketDelay) {
         if (bufferCapacity < 1)
-            throw new RuntimeException("Buffer capacity " + bufferCapacity + " is illegal value");
+            throw new RuntimeException("Buffer capacity " + bufferCapacity + " inputStream illegal value");
         if (collectPacketDelay < 0)
-            throw new RuntimeException("Collect Packet Delay " + collectPacketDelay + " is illegal value.");
+            throw new RuntimeException("Collect Packet Delay " + collectPacketDelay + " inputStream illegal value.");
         BUFFER_CAPACITY = bufferCapacity;
-        COLLECT_PACKET_DELAY = collectPacketDelay;
+        COLLECT_PAYLOAD_DELAY = collectPacketDelay;
+    }
+
+    void close(Closeable closeable) {
+        if (closeable != null) {
+            try {
+                closeable.close();
+            } catch (IOException ignored) {
+            }
+        }
     }
 
     /**
@@ -84,32 +95,14 @@ public class BlueDuff {
         return rx.Observable.create(new Observable.OnSubscribe<Boolean>() {
             @Override
             public void call(Subscriber<? super Boolean> subscriber) {
-                if (is != null) {
-                    try {
-                        is.close();
-                    } catch (IOException iex) {
-                        subscriber.onError(new Throwable("Failed to close input stream"));
-                    }
-                    is = null;
-                }
-                if (os != null) {
-                    try {
-                        os.close();
-                    } catch (IOException iex) {
-                        subscriber.onError(new Throwable("Failed to close output stream"));
-                    }
-                    os = null;
-                }
-                if (bluetoothSocket != null) {
-                    try {
-                        bluetoothSocket.close();
-                    } catch (IOException blex) {
-                        subscriber.onError(new Throwable("Failed to close socket"));
-                    }
-                    bluetoothSocket = null;
-                }
+                close(inputStream);
+                inputStream = null;
+                close(outputStream);
+                outputStream = null;
+                close(bluetoothSocket);
+                bluetoothSocket = null;
+
                 subscriber.onNext(true);
-                subscriber.onCompleted();
             }
         }).subscribeOn(Schedulers.io()).observeOn(AndroidSchedulers.mainThread())
                 .subscribe(new Action1<Boolean>() {
@@ -129,37 +122,41 @@ public class BlueDuff {
     }
 
 
-    private int write(byte[] bytes) {
-        if (logLevel == LogLevel.VERBOSE)
-            Log.d(TAG, "write: " + bytes.length + " bytes");
-        if (os != null) {
+    int write(byte[] bytes) {
+
+        if (isVerbose()) Log.d(TAG, "write: " + bytes.length + " bytes");
+
+        if (outputStream != null) {
             try {
-                os.write(bytes);
+                outputStream.write(bytes);
             } catch (Exception e) {
                 return 0;
             }
             return bytes.length;
         } else {
-            if (logLevel == LogLevel.VERBOSE)
-                Log.e(TAG, "Output stream not opened. Create connection first!");
+            if (isVerbose()) Log.e(TAG, "Output stream not opened. Create connection first!");
             return 0;
         }
     }
 
+    boolean isVerbose(){
+        return logLevel == LogLevel.VERBOSE;
+    }
+
     /**
      * @param bytes data to send
-     * @return true, if output stream is opened
+     * @return true, if output stream inputStream opened
      */
     public boolean writeData(byte[] bytes) {
-        if (logLevel == LogLevel.VERBOSE)
+        if (isVerbose())
             Log.d(TAG, "writeData here");
-        boolean canWrite = os != null;
+        boolean canWrite = outputStream != null;
         if (canWrite) Observable.just(write(bytes))
                 .subscribeOn(Schedulers.io())
                 .subscribe(new Action1<Integer>() {
                     @Override
                     public void call(Integer integer) {
-                        if (logLevel == LogLevel.VERBOSE)
+                        if (isVerbose())
                             Log.d(TAG, integer + " bytes written!!!");
                     }
                 }, new Action1<Throwable>() {
@@ -169,8 +166,8 @@ public class BlueDuff {
                             Log.e(TAG, "onError: " + throwable.getMessage());
                             throwable.printStackTrace();
                         }
-                        if (onConnectionErrorcallback != null)
-                            onConnectionErrorcallback.onError(throwable);
+                        if (onConnectionErrorCallback != null)
+                            onConnectionErrorCallback.onError(throwable);
                     }
                 });
         return canWrite;
@@ -178,7 +175,7 @@ public class BlueDuff {
 
     /**
      * @param socket               BluetoothSocket passed via rx chain
-     * @param firstWriter          callback where you can do something, after connection is ready
+     * @param firstWriter          callback where you can do something, after connection inputStream ready
      * @param dataReceivedCallback handle data from input stream
      * @return hot observable for rx-chain
      */
@@ -186,62 +183,80 @@ public class BlueDuff {
                                               @Nullable final BlueInterfaces.OnConnectedCallback firstWriter,
                                               @NonNull final BlueInterfaces.DataReceivedCallback dataReceivedCallback) {
         return Observable.create(new Observable.OnSubscribe<Boolean>() {
-            boolean receivedData = false;
+
 
             @Override
             public void call(Subscriber<? super Boolean> subscriber) {
-                boolean communicationNotCrashed = true;
                 try {
-                    is = socket.getInputStream();
-                    os = socket.getOutputStream();
+                    inputStream = socket.getInputStream();
+                    outputStream = socket.getOutputStream();
                 } catch (Exception f) {
                     subscriber.onError(new Throwable("error on opening input stream"));
-
                 } finally {
-                    if (is != null && os != null) {
-                        if (firstWriter != null) firstWriter.onConnected();
-                        byte[] buffer = new byte[BUFFER_CAPACITY];
-                        int bytesReceived;
-                        while (communicationNotCrashed) {
-                            try {
-                                Thread.sleep(COLLECT_PACKET_DELAY);
-                                bytesReceived = is.available();
-                                if (bytesReceived > 0) {
-                                    bytesReceived = is.read(buffer);
-                                    byte[] newBuffer = new byte[bytesReceived];
-                                    System.arraycopy(buffer, 0, newBuffer, 0, bytesReceived);
-                                    if (logLevel == LogLevel.VERBOSE)
-                                        Log.d(TAG, "bytes count : " + bytesReceived);
-                                    if (receivedData) {
-                                        int aLen = currentBuffer.length;
-                                        int bLen = newBuffer.length;
-                                        byte[] c = new byte[aLen + bLen];
-                                        System.arraycopy(currentBuffer, 0, c, 0, aLen);
-                                        System.arraycopy(newBuffer, 0, c, aLen, bLen);
-                                        currentBuffer = c;
-                                    } else {
-                                        currentBuffer = newBuffer;
-                                    }
-                                    receivedData = true;
-                                } else {
-                                    if (receivedData) {
-                                        if (logLevel == LogLevel.VERBOSE)
-                                            Log.d(TAG, "received data: " + currentBuffer.length + " bytes");
-                                        dataReceivedCallback.onDataReceived(currentBuffer);
-                                        subscriber.onNext(true);
-                                    }
-                                    receivedData = false;
-                                }
-                            } catch (Exception x) {
-                                communicationNotCrashed = false;
-                                subscriber.onError(new Throwable("error during reading input stream"));
-                            }
-                        }
-                        subscriber.onCompleted();
-                    } else subscriber.onError(new Throwable("i/o crashed"));
+                    receivedData = false;
+                    loopReceiveAndWrite(firstWriter, dataReceivedCallback, subscriber);
                 }
             }
         });
+    }
+
+    void loopReceiveAndWrite(@Nullable final BlueInterfaces.OnConnectedCallback firstWriter,
+                             @NonNull final BlueInterfaces.DataReceivedCallback dataReceivedCallback,
+                             Subscriber<? super Boolean> subscriber) {
+
+        boolean communicationNotCrashed = true;
+
+        if (inputStream != null && outputStream != null) {
+            if (firstWriter != null) firstWriter.onConnected();
+            byte[] buffer = new byte[BUFFER_CAPACITY];
+            int bytesReceived;
+
+            while (communicationNotCrashed) {
+                try {
+                    Thread.sleep(COLLECT_PAYLOAD_DELAY);
+
+                    bytesReceived = inputStream.available();
+
+                    receiveBytes(bytesReceived, buffer, dataReceivedCallback, subscriber);
+                } catch (Exception x) {
+                    communicationNotCrashed = false;
+                    subscriber.onError(new Throwable("error during reading input stream"));
+                }
+            }
+            subscriber.onCompleted();
+        } else subscriber.onError(new Throwable("i/o crashed"));
+    }
+
+    private void receiveBytes(int bytesReceived, byte[] buffer,
+                              @NonNull final BlueInterfaces.DataReceivedCallback dataReceivedCallback,
+                              Subscriber<? super Boolean> subscriber) throws Exception {
+        if (bytesReceived > 0) {
+
+            bytesReceived = inputStream.read(buffer);
+            byte[] newBuffer = new byte[bytesReceived];
+            System.arraycopy(buffer, 0, newBuffer, 0, bytesReceived);
+            if (isVerbose())
+                Log.d(TAG, "bytes count : " + bytesReceived);
+            if (receivedData) {
+                int aLen = currentBuffer.length;
+                int bLen = newBuffer.length;
+                byte[] c = new byte[aLen + bLen];
+                System.arraycopy(currentBuffer, 0, c, 0, aLen);
+                System.arraycopy(newBuffer, 0, c, aLen, bLen);
+                currentBuffer = c;
+            } else {
+                currentBuffer = newBuffer;
+            }
+            receivedData = true;
+        } else {
+            if (receivedData) {
+                if (isVerbose())
+                    Log.d(TAG, "received data: " + currentBuffer.length + " bytes");
+                dataReceivedCallback.onDataReceived(currentBuffer);
+                subscriber.onNext(true);
+            }
+            receivedData = false;
+        }
     }
 
     public static Observable<List<BluetoothDevice>> getBondedDevices() {
@@ -292,7 +307,7 @@ public class BlueDuff {
      *
      * @param device               BluetoothDevice
      * @param onConnectedCallback  send first packet of bytes. You can also swich between views here
-     * @param dataReceivedCallback is being called every time bluetooth adapter receives bytes from device
+     * @param dataReceivedCallback inputStream being called every time bluetooth adapter receives bytes from device
      */
     public rx.Subscription connectToDevice(BluetoothDevice device,
                                            final BlueInterfaces.OnConnectedCallback onConnectedCallback,
@@ -304,24 +319,18 @@ public class BlueDuff {
             }
         }).subscribeOn(Schedulers.io())
                 .observeOn(Schedulers.newThread())
-                .subscribe(new Subscriber<Boolean>() {
+                .subscribe(new Action1<Boolean>() {
                     @Override
-                    public void onCompleted() {
-                        if (logLevel == LogLevel.VERBOSE) Log.d(TAG, "onCompleted ");
+                    public void call(Boolean aBoolean) {
                     }
-
+                }, new Action1<Throwable>() {
                     @Override
-                    public void onError(Throwable e) {
+                    public void call(Throwable e) {
                         if (logLevel != LogLevel.NONE) {
                             Log.e(TAG, "onError " + e.getMessage());
                             e.printStackTrace();
                         }
-                        if (onConnectionErrorcallback != null) onConnectionErrorcallback.onError(e);
-                    }
-
-                    @Override
-                    public void onNext(Boolean aBoolean) {
-                        if (logLevel == LogLevel.VERBOSE) Log.d(TAG, "onNext " + aBoolean);
+                        if (onConnectionErrorCallback != null) onConnectionErrorCallback.onError(e);
                     }
                 });
     }
@@ -332,44 +341,41 @@ public class BlueDuff {
      * See also {@link BlueDuff#connectToDevice(BluetoothDevice, BlueInterfaces.OnConnectedCallback, BlueInterfaces.DataReceivedCallback)}
      *
      * @param onConnectedCallback  send first packet of bytes. You can also swich between views here
-     * @param dataReceivedCallback is being called every time bluetooth adapter receives bytes from device
+     * @param dataReceivedCallback inputStream being called every time bluetooth adapter receives bytes from device
      */
     @RequiresPermission(BLUETOOTH)
     public rx.Subscription connectToFirstDevice(final BlueInterfaces.OnConnectedCallback onConnectedCallback,
                                                 final BlueInterfaces.DataReceivedCallback dataReceivedCallback) {
-        if (logLevel == LogLevel.VERBOSE) Log.d(TAG, "connectToFirstDevice ");
+        if (isVerbose()) Log.d(TAG, "connectToFirstDevice ");
         return BlueDuff.getBondedDevices().flatMap(new Func1<List<BluetoothDevice>, Observable<BluetoothSocket>>() {
             @Override
             @RequiresPermission(BLUETOOTH)
             public Observable<BluetoothSocket> call(List<BluetoothDevice> bluetoothDevices) {
-                if (logLevel == LogLevel.VERBOSE) Log.d(TAG, "call BluetoothSocket observable");
+                if (isVerbose()) Log.d(TAG, "call BluetoothSocket observable");
                 return initCommunication(bluetoothDevices.get(0), ConnectionSecurity.SECURE);
             }
         }).flatMap(new Func1<BluetoothSocket, Observable<Boolean>>() {
             @Override
             public Observable<Boolean> call(BluetoothSocket bluetoothSocket) {
-                if (logLevel == LogLevel.VERBOSE) Log.d(TAG, "call BluetoothSocket");
+                if (isVerbose()) Log.d(TAG, "call BluetoothSocket");
                 return getStreamsWork(bluetoothSocket, onConnectedCallback, dataReceivedCallback);
             }
         }).subscribeOn(Schedulers.io())
                 .observeOn(Schedulers.newThread())
-                .subscribe(new Subscriber<Boolean>() {
-                    @Override
-                    public void onCompleted() {
-                        if (logLevel == LogLevel.VERBOSE) Log.d(TAG, "onCompleted ");
-                    }
+                .subscribe(
+                        new Action1<Boolean>() {
+                            @Override
+                            public void call(Boolean aBoolean) {
 
-                    @Override
-                    public void onError(Throwable e) {
-                        if (logLevel != LogLevel.NONE)
-                            e.printStackTrace();
-                        if (onConnectionErrorcallback != null) onConnectionErrorcallback.onError(e);
-                    }
+                            }
+                        }, new Action1<Throwable>() {
+                            @Override
+                            public void call(Throwable e) {
+                                if (logLevel != LogLevel.NONE)
+                                    e.printStackTrace();
+                                if (onConnectionErrorCallback != null) onConnectionErrorCallback.onError(e);
 
-                    @Override
-                    public void onNext(Boolean aBoolean) {
-                        if (logLevel == LogLevel.VERBOSE) Log.d(TAG, "onNext " + aBoolean);
-                    }
-                });
+                            }
+                        });
     }
 }

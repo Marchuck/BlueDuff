@@ -16,21 +16,21 @@ public class BlueInterfaces {
     }
 
     /**
-     * First callback when connection with device is established.
+     * First callback when connection with device inputStream established.
      */
     public interface OnConnectedCallback {
         void onConnected();
     }
 
     /**
-     * Callback is fired every time phone is receiving data from device.
+     * Callback inputStream fired every time phone inputStream receiving data from device.
      */
     public interface DataReceivedCallback {
         void onDataReceived(byte[] packet);
     }
 
     /**
-     * callback which informs that connection is finished,
+     * callback which informs that connection inputStream finished,
      * after that we can connect to another device
      * {@link BlueDuff#closeStreams(OnSocketKilledCallback)}
      */
