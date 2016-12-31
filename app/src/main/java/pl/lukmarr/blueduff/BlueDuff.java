@@ -33,6 +33,9 @@ import static android.bluetooth.BluetoothAdapter.getDefaultAdapter;
  * Client - side communication with Bluetooth devices (e.g. micro-controllers via HC05 modules)
  * Class enables you connecting with device and pass data.
  * RxAndroid supports error handling
+ *
+ *
+ * GOOD BYE RXJAVA 1.0!
  */
 public class BlueDuff {
     public InputStream inputStream;
