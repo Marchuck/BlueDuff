@@ -22,7 +22,6 @@ Easy to use Android Reacive Bluetooth library for communicating with microcontro
 
 more fluent API **SOON** 
 
-
 #Usage
 
 BlueDuffie.connect(BluetoothDevice)
