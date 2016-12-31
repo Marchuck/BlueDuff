@@ -22,7 +22,7 @@ import io.reactivex.schedulers.Schedulers;
  * on 31.12.2016.
  */
 
-public final class BlueDuffie {
+public final class BlueDuff {
 
     final int bufferCapacity;
     final long bluetoothSleep;
@@ -65,13 +65,13 @@ public final class BlueDuffie {
             return this;
         }
 
-        public BlueDuffie build() {
-            return new BlueDuffie(bufferCapacity, bluetoothSleep, charsetString, connectionCallbacks, isSecureCommunication);
+        public BlueDuff build() {
+            return new BlueDuff(bufferCapacity, bluetoothSleep, charsetString, connectionCallbacks, isSecureCommunication);
         }
     }
 
-    private BlueDuffie(int bufferCapacity, long bluetoothSleep, String charsetString,
-                       ConnectionCallbacks c, boolean isSecure) {
+    private BlueDuff(int bufferCapacity, long bluetoothSleep, String charsetString,
+                     ConnectionCallbacks c, boolean isSecure) {
         this.bufferCapacity = bufferCapacity;
         this.bluetoothSleep = bluetoothSleep;
         this.charsetString = charsetString;
